@@ -394,7 +394,7 @@ document.getElementById('commentAdd').addEventListener('click',()=>{const text=d
  const visits=Number(localStorage.getItem('physicsV2Visits')||0)+1;localStorage.setItem('physicsV2Visits',String(visits));if($('localVisits'))$('localVisits').textContent=visits;refreshMember();
  $('globalSearch')?.addEventListener('input',e=>{const q=e.target.value.trim().toLocaleLowerCase('ar');let n=0;document.querySelectorAll('main h2, main h3, main .article-card, main .tile, main .feature-card').forEach(el=>{const match=!q||el.textContent.toLocaleLowerCase('ar').includes(q);if(el.classList.contains('article-card')||el.classList.contains('tile')||el.classList.contains('feature-card')){el.classList.toggle('hidden',!match);if(match)n++;}});});
  $('themeSwitch')?.addEventListener('click',()=>{document.body.classList.toggle('theme-light');localStorage.setItem('physicsV2Theme',document.body.classList.contains('theme-light')?'light':'dark')});if(localStorage.getItem('physicsV2Theme')==='light')document.body.classList.add('theme-light');
- $('languageSwitch')?.addEventListener('click',()=>alert('واجهة اللغة الإنجليزية قيد الإعداد؛ المحتوى العلمي الأساسي ما زال بالعربية في هذه النسخة.'));
+ $
  document.querySelectorAll('[data-ai-mode]').forEach(b=>b.addEventListener('click',()=>{if($('activeAIMode'))$('activeAIMode').textContent=({physics:'Physics AI',math:'Math AI',space:'Space AI',science:'Science AI',research:'Research AI'})[b.dataset.aiMode];$('suiteQuestion')?.focus()}));
  $('clearSuite')?.addEventListener('click',()=>{if($('suiteQuestion'))$('suiteQuestion').value='';if($('suiteAnswer'))$('suiteAnswer').textContent='بدأت محادثة جديدة. اكتب سؤالك.'});
  $('copySuite')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('suiteAnswer')?.textContent||'');alert('تم نسخ الإجابة')}catch{alert('تعذر النسخ من المتصفح')}});
@@ -410,6 +410,89 @@ document.getElementById('commentAdd').addEventListener('click',()=>{const text=d
 
 
 // V4.2: obsolete 2D universe renderer removed; Three.js owns the canvas.
+ // Language switch
+(() => {
+  const btn = document.getElementById('languageSwitch');
+  if (!btn) return;
+
+  const translations = {
+    'ابحث في المكتبة…': 'Search the library…',
+    'تبديل المظهر': 'Toggle theme',
+    'تبديل اللغة': 'Change language',
+    'تسجيل الدخول': 'Login'
+  };
+
+  const originalTexts = new Map();
+  const originalAttrs = new Map();
+
+  function collect() {
+    const walker = document.createTreeWalker(
+      document.body, NodeFilter.SHOW_TEXT
+    );
+
+    let node;
+    while ((node = walker.nextNode())) {
+      const value = node.nodeValue.trim();
+      if (translations[value] && !originalTexts.has(node)) {
+        originalTexts.set(node, node.nodeValue);
+      }
+    }
+
+    document.querySelectorAll('[placeholder], [title]').forEach(el => {
+      ['placeholder', 'title'].forEach(attr => {
+        const value = el.getAttribute(attr);
+        if (translations[value] && !originalAttrs.has(el)) {
+          originalAttrs.set(el, {});
+          originalAttrs.get(el)[attr] = value;
+        }
+      });
+    });
+  }
+
+  function setLanguage(lang) {
+    collect();
+
+    if (lang === 'en') {
+      originalTexts.forEach((value, node) => {
+        const key = value.trim();
+        node.nodeValue = value.replace(key, translations[key]);
+      });
+
+      originalAttrs.forEach((attrs, el) => {
+        Object.entries(attrs).forEach(([attr, value]) => {
+          el.setAttribute(attr, translations[value]);
+        });
+      });
+
+      document.documentElement.lang = 'en';
+      document.documentElement.dir = 'ltr';
+      btn.textContent = 'AR';
+    } else {
+      originalTexts.forEach((value, node) => {
+        node.nodeValue = value;
+      });
+
+      originalAttrs.forEach((attrs, el) => {
+        Object.entries(attrs).forEach(([attr, value]) => {
+          el.setAttribute(attr, value);
+        });
+      });
+
+      document.documentElement.lang = 'ar';
+      document.documentElement.dir = 'rtl';
+      btn.textContent = 'EN';
+    }
+
+    localStorage.setItem('siteLanguage', lang);
+  }
+
+  btn.addEventListener('click', () => {
+    const next = document.documentElement.lang === 'en' ? 'ar' : 'en';
+    setLanguage(next);
+  });
+
+  setLanguage(localStorage.getItem('siteLanguage') || 'ar');
+})();
 </script>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
