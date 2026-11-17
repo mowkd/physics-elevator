@@ -781,4 +781,97 @@ void main(){
 })();
 
 </script>
+ <!-- ALKAWN LOGIN & CHAT -->
+<div id="alkawn-chat" style="background:#101827;color:white;padding:20px;border-radius:15px;margin:20px;font-family:Arial">
+  <h2>ALKAWN Community Chat</h2>
+  <div id="auth">
+    <input id="email" type="email" placeholder="Email" style="padding:10px">
+    <input id="password" type="password" placeholder="Password" style="padding:10px">
+    <button id="signup">Create Account</button>
+    <button id="login">Login</button>
+  </div>
+  <div id="chat" hidden>
+    <button id="logout">Logout</button>
+    <div id="messages" style="height:250px;overflow:auto;background:#080f1c;padding:10px;margin:12px 0"></div>
+    <input id="message" maxlength="2000" placeholder="Write a message..." style="padding:10px;width:65%">
+    <button id="send">Send</button>
+  </div>
+  <p id="status">Please login or create an account.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const alkawnDB = window.supabase.createClient(
+  'https://fugllfjltpbaznjfecar.supabase.co',
+  'sb_publishable_Oxw6ZkknvqbjOLt__YtpYQ_1iHnFrF3'
+);
+
+const $ = id => document.getElementById(id);
+let currentUser = null;
+
+async function loadMessages() {
+  const {data} = await alkawnDB.from('chat_messages')
+    .select('*').order('created_at', {ascending:true}).limit(100);
+  $('messages').replaceChildren();
+  (data || []).forEach(m => {
+    const p = document.createElement('p');
+    p.textContent = m.user_id.slice(0,8) + ': ' + m.content;
+    $('messages').appendChild(p);
+  });
+  $('messages').scrollTop = $('messages').scrollHeight;
+}
+
+async function updateAuth() {
+  const {data} = await alkawnDB.auth.getUser();
+  currentUser = data.user;
+  $('auth').hidden = !!currentUser;
+  $('chat').hidden = !currentUser;
+  $('status').textContent = currentUser ? 'You are logged in.' : 'Please login or create an account.';
+  if(currentUser) loadMessages();
+}
+
+$('signup').onclick = async () => {
+  const {error} = await alkawnDB.auth.signUp({
+    email:$('email').value,
+    password:$('password').value
+  });
+  $('status').textContent = error ? error.message : 'Check your email to confirm your account.';
+};
+
+$('login').onclick = async () => {
+  const {error} = await alkawnDB.auth.signInWithPassword({
+    email:$('email').value,
+    password:$('password').value
+  });
+  $('status').textContent = error ? error.message : 'Login successful!';
+  if(!error) updateAuth();
+};
+
+$('logout').onclick = async () => {
+  await alkawnDB.auth.signOut();
+  updateAuth();
+};
+
+$('send').onclick = async () => {
+  const content = $('message').value.trim();
+  if(!content || !currentUser) return;
+  const {error} = await alkawnDB.from('chat_messages').insert({
+    user_id:currentUser.id,
+    content
+  });
+  if(error) $('status').textContent = error.message;
+  else {
+    $('message').value = '';
+    loadMessages();
+  }
+};
+
+alkawnDB.channel('public-chat')
+  .on('postgres_changes',
+    {event:'*',schema:'public',table:'chat_messages'},
+    loadMessages
+  ).subscribe();
+
+updateAuth();
+</script>
 </body></html>
